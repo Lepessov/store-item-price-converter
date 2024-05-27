@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use GuzzleHttp\Client;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class ExchangeRateService
@@ -17,30 +16,21 @@ class ExchangeRateService
 
     public function getRates()
     {
-        return Cache::remember('exchange_rates', 3600, function () {
-            try {
-                $response = $this->client->get('https://api.exchangeratesapi.io/latest', [
-                    'query' => [
-                        'access_key' => env('EXCHANGE_RATE_API_KEY'),
-                        'base' => 'USD'
-                    ]
-                ]);
+        try {
+            $response = $this->client->get('https://v6.exchangerate-api.com/v6/7e3aae7f1e044f6913fd3a83/latest/USD');
+            $data = json_decode($response->getBody()->getContents(), true);
 
-                $data = json_decode($response->getBody()->getContents(), true);
-
-                Log::info('Exchange rates API response', $data);
-
-                if (!isset($data['rates'])) {
-                    Log::error('Exchange rates API response does not contain rates key', $data);
-                    throw new \Exception('Exchange rates API response does not contain rates key');
-                }
-
-                return $data['rates'];
-            } catch (\Exception $e) {
-                Log::error('Failed to fetch exchange rates: ' . $e->getMessage());
-                return [];
+            Log::error('Exchange rates API response', $data);
+            if (!isset($data['conversion_rates'])) {
+                Log::error('Exchange rates API response does not contain rates key', $data);
+                throw new \Exception('Exchange rates API response does not contain rates key');
             }
-        });
+
+            return $data['conversion_rates'];
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch exchange rates: ' . $e->getMessage());
+            return [];
+        }
     }
 
     public function convert($amount, $from, $to)
